@@ -9,7 +9,7 @@ import uuid
 import json
 from datetime import datetime
 from config import Config
-from models import VideoRequest, VideoResponse, PipelineStatusResponse, PipelineConfig
+from models import VideoRequest, VideoResponse, PipelineStatusResponse, PipelineConfig, RunwayTransformRequest
 from pipeline_manager import pipeline_manager
 from middleware.logging_middleware import LoggingMiddleware
 from middleware.error_middleware import ErrorHandlingMiddleware
@@ -117,6 +117,58 @@ async def transform_video(request: VideoRequest, background_tasks: BackgroundTas
     except Exception as e:
         logger.error(f"Unexpected error in transform_video: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@app.post("/api/video/runway-transform")
+async def runway_transform_video(request: RunwayTransformRequest, background_tasks: BackgroundTasks):
+    """
+    Transform video using Runway ML video-to-video
+    """
+    try:
+        # Validate input
+        validate_uuid(request.videoId, "videoId")
+        validate_video_url(str(request.videoUrl))
+        validate_prompt(request.prompt)
+        
+        # Create job ID
+        job_id = str(uuid.uuid4())
+        
+        # Create pipeline with only Runway video step
+        config = PipelineConfig(
+            enableRunwayVideo=True,
+            enableFfmpeg=False,
+            enableWhisper=False,
+            enableGpt4=False,
+            customSteps=[]
+        )
+        
+        # Create new pipeline
+        pipeline = pipeline_manager.create_pipeline(
+            video_id=request.videoId,
+            video_url=str(request.videoUrl),
+            prompt=request.prompt,
+            config=config
+        )
+        
+        logger.pipeline_start(pipeline.pipelineId, request.videoId)
+        
+        # Start pipeline in background
+        background_tasks.add_task(pipeline_manager.start_pipeline, pipeline.pipelineId)
+        
+        return {
+            "success": True,
+            "message": "Runway video transformation started",
+            "job_id": job_id,
+            "pipeline_id": pipeline.pipelineId,
+            "status": "pending"
+        }
+        
+    except ValidationException as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except PipelineException as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        logger.error(f"Unexpected error in runway_transform_video: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Runway transformation failed: {str(e)}")
 
 @app.get("/api/pipeline/{pipeline_id}/status", response_model=PipelineStatusResponse)
 async def get_pipeline_status(pipeline_id: str):

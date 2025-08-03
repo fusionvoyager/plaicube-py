@@ -89,4 +89,12 @@ class PipelineConfig(BaseModel):
     enableFfmpeg: bool = False
     enableWhisper: bool = False
     enableGpt4: bool = False
-    customSteps: List[Dict[str, Any]] = [] 
+    customSteps: List[Dict[str, Any]] = []
+
+# Runway Transform Request (matches backend format)
+class RunwayTransformRequest(BaseModel):
+    videoId: str
+    videoUrl: str
+    prompt: str
+    user_id: Optional[str] = None
+    firebase_token: Optional[str] = None 
