@@ -363,6 +363,51 @@ async def get_video_status_legacy(video_id: str):
         logger.error(f"Unexpected error in get_video_status_legacy: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
+@app.get("/api/video/runway-status/{task_id}")
+async def get_runway_task_status(task_id: str):
+    """
+    Get Runway task status
+    """
+    try:
+        # Validate taskId format
+        validate_uuid(task_id, "taskId")
+        
+        # Find pipeline by task_id (assuming task_id is the same as pipeline_id for now)
+        pipeline = pipeline_manager.get_pipeline(task_id)
+        if not pipeline:
+            raise HTTPException(status_code=404, detail="Task not found")
+        
+        # Get the Runway step from the pipeline
+        runway_step = None
+        for step in pipeline.steps:
+            if step.stepType.value == "runway_video":
+                runway_step = step
+                break
+        
+        if not runway_step:
+            raise HTTPException(status_code=404, detail="Runway step not found")
+        
+        return {
+            "success": True,
+            "data": {
+                "task_id": task_id,
+                "status": runway_step.status.value,
+                "progress": runway_step.progress,
+                "started_at": runway_step.startedAt,
+                "completed_at": runway_step.completedAt,
+                "error": runway_step.error,
+                "output": runway_step.output
+            }
+        }
+        
+    except ValidationException as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error in get_runway_task_status: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Runway status check failed: {str(e)}")
+
 if __name__ == "__main__":
     import uvicorn
     logger.info("🚀 Starting Plaicube Video Pipeline API...")

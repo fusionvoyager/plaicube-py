@@ -94,7 +94,7 @@ class PipelineConfig(BaseModel):
 # Runway Transform Request (matches backend format)
 class RunwayTransformRequest(BaseModel):
     videoId: str
-    videoUrl: str
+    videoUrl: HttpUrl
     prompt: str
     user_id: Optional[str] = None
     firebase_token: Optional[str] = None 

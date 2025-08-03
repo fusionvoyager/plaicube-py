@@ -18,27 +18,41 @@ class RunwayService:
         Video'yu URL'den indir ve geçici dosya olarak kaydet
         """
         try:
+            # URL'yi string'e çevir (Pydantic URL objesi olabilir)
+            video_url_str = str(video_url)
+            print(f"Downloading video from URL: {video_url_str}")
+            print(f"URL type: {type(video_url)}")
+            
             # Geçici dosya oluştur
             temp_dir = tempfile.gettempdir()
             temp_file = os.path.join(temp_dir, f"video_{pipeline_id}.mp4")
+            print(f"Temp file path: {temp_file}")
             
             # Video'yu indir
             async with httpx.AsyncClient() as client:
-                response = await client.get(video_url, timeout=300.0)  # 5 dakika timeout
+                print(f"Making HTTP request to: {video_url_str}")
+                response = await client.get(video_url_str, timeout=300.0)  # 5 dakika timeout
+                
+                print(f"Response status: {response.status_code}")
+                print(f"Response headers: {response.headers}")
                 
                 if response.status_code == 200:
                     # Dosyayı kaydet
                     async with aiofiles.open(temp_file, 'wb') as f:
                         await f.write(response.content)
                     
-                    print(f"Video downloaded: {temp_file}")
+                    print(f"Video downloaded successfully: {temp_file}")
                     return temp_file
                 else:
                     print(f"Failed to download video: {response.status_code}")
+                    print(f"Response text: {response.text}")
                     return None
                     
         except Exception as e:
             print(f"Error downloading video: {str(e)}")
+            print(f"Error type: {type(e)}")
+            import traceback
+            traceback.print_exc()
             return None
     
     async def process_video(self, video_url: str, prompt: str, pipeline_id: str) -> Optional[Dict[str, Any]]:
